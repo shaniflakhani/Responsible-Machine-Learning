@@ -1,0 +1,982 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Individual Assignment I"
+      ],
+      "metadata": {
+        "id": "dw3-AxnJg01-"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "import matplotlib.pyplot as plt\n",
+        "import statsmodels.formula.api as smf\n",
+        "import warnings\n",
+        "warnings.filterwarnings('ignore')"
+      ],
+      "metadata": {
+        "id": "7UBsyawZeULZ"
+      },
+      "execution_count": 7,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "url = \"https://raw.githubusercontent.com/propublica/compas-analysis/master/compas-scores-two-years.csv\"\n",
+        "raw_data = pd.read_csv(url)\n",
+        "\n",
+        "print(\"Total rows in raw data:\", len(raw_data))\n",
+        "print(raw_data.head(10))"
+      ],
+      "metadata": {
+        "id": "pf71kHU-eXw4",
+        "outputId": "1521c6ee-4ab1-47c7-badf-4ca47774b988",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 8,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Total rows in raw data: 7214\n",
+            "   id                name      first         last compas_screening_date  \\\n",
+            "0   1    miguel hernandez     miguel    hernandez            2013-08-14   \n",
+            "1   3         kevon dixon      kevon        dixon            2013-01-27   \n",
+            "2   4            ed philo         ed        philo            2013-04-14   \n",
+            "3   5         marcu brown      marcu        brown            2013-01-13   \n",
+            "4   6  bouthy pierrelouis     bouthy  pierrelouis            2013-03-26   \n",
+            "5   7        marsha miles     marsha        miles            2013-11-30   \n",
+            "6   8       edward riddle     edward       riddle            2014-02-19   \n",
+            "7   9      steven stewart     steven      stewart            2013-08-30   \n",
+            "8  10    elizabeth thieme  elizabeth       thieme            2014-03-16   \n",
+            "9  13           bo bradac         bo       bradac            2013-11-04   \n",
+            "\n",
+            "      sex         dob  age          age_cat              race  ...  \\\n",
+            "0    Male  1947-04-18   69  Greater than 45             Other  ...   \n",
+            "1    Male  1982-01-22   34          25 - 45  African-American  ...   \n",
+            "2    Male  1991-05-14   24     Less than 25  African-American  ...   \n",
+            "3    Male  1993-01-21   23     Less than 25  African-American  ...   \n",
+            "4    Male  1973-01-22   43          25 - 45             Other  ...   \n",
+            "5    Male  1971-08-22   44          25 - 45             Other  ...   \n",
+            "6    Male  1974-07-23   41          25 - 45         Caucasian  ...   \n",
+            "7    Male  1973-02-25   43          25 - 45             Other  ...   \n",
+            "8  Female  1976-06-03   39          25 - 45         Caucasian  ...   \n",
+            "9    Male  1994-06-10   21     Less than 25         Caucasian  ...   \n",
+            "\n",
+            "   v_decile_score  v_score_text  v_screening_date  in_custody  out_custody  \\\n",
+            "0               1           Low        2013-08-14  2014-07-07   2014-07-14   \n",
+            "1               1           Low        2013-01-27  2013-01-26   2013-02-05   \n",
+            "2               3           Low        2013-04-14  2013-06-16   2013-06-16   \n",
+            "3               6        Medium        2013-01-13         NaN          NaN   \n",
+            "4               1           Low        2013-03-26         NaN          NaN   \n",
+            "5               1           Low        2013-11-30  2013-11-30   2013-12-01   \n",
+            "6               2           Low        2014-02-19  2014-03-31   2014-04-18   \n",
+            "7               3           Low        2013-08-30  2014-05-22   2014-06-03   \n",
+            "8               1           Low        2014-03-16  2014-03-15   2014-03-18   \n",
+            "9               5        Medium        2013-11-04  2015-01-06   2015-01-07   \n",
+            "\n",
+            "   priors_count.1 start   end event two_year_recid  \n",
+            "0               0     0   327     0              0  \n",
+            "1               0     9   159     1              1  \n",
+            "2               4     0    63     0              1  \n",
+            "3               1     0  1174     0              0  \n",
+            "4               2     0  1102     0              0  \n",
+            "5               0     1   853     0              0  \n",
+            "6              14     5    40     1              1  \n",
+            "7               3     0   265     0              0  \n",
+            "8               0     2   747     0              0  \n",
+            "9               1     0   428     1              1  \n",
+            "\n",
+            "[10 rows x 53 columns]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df = raw_data[[\n",
+        "    \"age\", \"c_charge_degree\", \"race\", \"age_cat\", \"score_text\", \"sex\",\n",
+        "    \"priors_count\", \"days_b_screening_arrest\", \"decile_score\", \"is_recid\",\n",
+        "    \"two_year_recid\", \"c_jail_in\", \"c_jail_out\"\n",
+        "]].copy()"
+      ],
+      "metadata": {
+        "id": "Gi8YMyi8ecbg"
+      },
+      "execution_count": 9,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df = df[df[\"days_b_screening_arrest\"] >= -30]\n",
+        "df = df[df[\"days_b_screening_arrest\"] <= 30]"
+      ],
+      "metadata": {
+        "id": "OfW0gk12enEc"
+      },
+      "execution_count": 10,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df = df[df[\"is_recid\"] != -1]"
+      ],
+      "metadata": {
+        "id": "RqAmLOH9eyfa"
+      },
+      "execution_count": 11,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df = df[df[\"c_charge_degree\"] != \"O\"]"
+      ],
+      "metadata": {
+        "id": "-vkNUCexe1Cl"
+      },
+      "execution_count": 12,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df = df[df[\"score_text\"] != \"N/A\"]"
+      ],
+      "metadata": {
+        "id": "TPLJtRs8e3L3"
+      },
+      "execution_count": 13,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df = df.reset_index(drop=True)"
+      ],
+      "metadata": {
+        "id": "KFfD3pSte5e5"
+      },
+      "execution_count": 14,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"\\nRows after filtering:\", len(df))"
+      ],
+      "metadata": {
+        "id": "iw0sC6T3e73Y",
+        "outputId": "2017ef00-b6a0-42d7-80a8-6cf46ba50856",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 15,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Rows after filtering: 6172\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df[\"c_jail_in\"]  = pd.to_datetime(df[\"c_jail_in\"],  errors=\"coerce\")\n",
+        "df[\"c_jail_out\"] = pd.to_datetime(df[\"c_jail_out\"], errors=\"coerce\")"
+      ],
+      "metadata": {
+        "id": "bdlKJtrQfGdu"
+      },
+      "execution_count": 16,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df[\"length_of_stay\"] = (df[\"c_jail_out\"] - df[\"c_jail_in\"]).dt.days\n",
+        "df[\"score_factor\"] = 0\n",
+        "df.loc[df[\"score_text\"] != \"Low\", \"score_factor\"] = 1\n",
+        "print(\"\\nFirst 6 rows:\")\n",
+        "print(df[[\"age\", \"race\", \"sex\", \"score_text\", \"score_factor\", \"decile_score\", \"two_year_recid\"]].head(6))"
+      ],
+      "metadata": {
+        "id": "g1bvqxX5fKPS",
+        "outputId": "0405cfa0-79f1-4a61-dbf0-36cb0d9fef39",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 17,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "First 6 rows:\n",
+            "   age              race   sex score_text  score_factor  decile_score  \\\n",
+            "0   69             Other  Male        Low             0             1   \n",
+            "1   34  African-American  Male        Low             0             3   \n",
+            "2   24  African-American  Male        Low             0             4   \n",
+            "3   44             Other  Male        Low             0             1   \n",
+            "4   41         Caucasian  Male     Medium             1             6   \n",
+            "5   43             Other  Male        Low             0             4   \n",
+            "\n",
+            "   two_year_recid  \n",
+            "0               0  \n",
+            "1               1  \n",
+            "2               1  \n",
+            "3               0  \n",
+            "4               1  \n",
+            "5               0  \n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "valid = df[[\"length_of_stay\", \"decile_score\"]].dropna()\n",
+        "corr = valid[\"length_of_stay\"].corr(valid[\"decile_score\"])\n",
+        "print(f\"\\nCorrelation (length_of_stay vs decile_score): {corr:.7f}\")"
+      ],
+      "metadata": {
+        "id": "ysemeQ2nfSd8",
+        "outputId": "bc3507f6-636d-4735-a03c-f0267de9fb85",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 18,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Correlation (length_of_stay vs decile_score): 0.2074781\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"\\nAge category counts:\")\n",
+        "print(df[\"age_cat\"].value_counts().sort_index())"
+      ],
+      "metadata": {
+        "id": "mRPlsTVdfZg1",
+        "outputId": "5c52309b-4d89-465b-fac0-b018a9a4b016",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 19,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Age category counts:\n",
+            "age_cat\n",
+            "25 - 45            3532\n",
+            "Greater than 45    1293\n",
+            "Less than 25       1347\n",
+            "Name: count, dtype: int64\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"\\nRace counts:\")\n",
+        "race_counts = df[\"race\"].value_counts()\n",
+        "print(race_counts)\n",
+        "\n",
+        "total = len(df)\n",
+        "print(f\"\\nBlack defendants:          {race_counts.get('African-American', 0) / total * 100:.2f}%\")\n",
+        "print(f\"White defendants:          {race_counts.get('Caucasian', 0)         / total * 100:.2f}%\")\n",
+        "print(f\"Hispanic defendants:       {race_counts.get('Hispanic', 0)          / total * 100:.2f}%\")\n",
+        "print(f\"Asian defendants:          {race_counts.get('Asian', 0)             / total * 100:.2f}%\")\n",
+        "print(f\"Native American defendants:{race_counts.get('Native American', 0)   / total * 100:.2f}%\")"
+      ],
+      "metadata": {
+        "id": "uHPWxW50feJV",
+        "outputId": "caeaf1a7-4429-4ba6-bed7-a5cf16844168",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 20,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Race counts:\n",
+            "race\n",
+            "African-American    3175\n",
+            "Caucasian           2103\n",
+            "Hispanic             509\n",
+            "Other                343\n",
+            "Asian                 31\n",
+            "Native American       11\n",
+            "Name: count, dtype: int64\n",
+            "\n",
+            "Black defendants:          51.44%\n",
+            "White defendants:          34.07%\n",
+            "Hispanic defendants:       8.25%\n",
+            "Asian defendants:          0.50%\n",
+            "Native American defendants:0.18%\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"\\nScore text counts:\")\n",
+        "print(df[\"score_text\"].value_counts())"
+      ],
+      "metadata": {
+        "id": "Ysz5CekRfg0N",
+        "outputId": "ceb5c4d4-af0f-4aad-eeee-97e8efa8d66e",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 21,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Score text counts:\n",
+            "score_text\n",
+            "Low       3421\n",
+            "Medium    1607\n",
+            "High      1144\n",
+            "Name: count, dtype: int64\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"\\nSex x Race crosstab:\")\n",
+        "print(pd.crosstab(df[\"sex\"], df[\"race\"]))"
+      ],
+      "metadata": {
+        "id": "KM4SiEURfjW1",
+        "outputId": "c9c3bdf8-0b01-4b33-98aa-3721adcb41f4",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 22,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Sex x Race crosstab:\n",
+            "race    African-American  Asian  Caucasian  Hispanic  Native American  Other\n",
+            "sex                                                                         \n",
+            "Female               549      2        482        82                2     58\n",
+            "Male                2626     29       1621       427                9    285\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"\\nSex counts:\")\n",
+        "sex_counts = df[\"sex\"].value_counts()\n",
+        "print(sex_counts)\n",
+        "\n",
+        "print(f\"\\nMen:   {sex_counts.get('Male', 0)   / total * 100:.2f}%\")\n",
+        "print(f\"Women: {sex_counts.get('Female', 0) / total * 100:.2f}%\")"
+      ],
+      "metadata": {
+        "id": "KiNXuwx6flpU",
+        "outputId": "76c49634-1196-463b-8c14-b3ce21d1b9bf",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 23,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Sex counts:\n",
+            "sex\n",
+            "Male      4997\n",
+            "Female    1175\n",
+            "Name: count, dtype: int64\n",
+            "\n",
+            "Men:   80.96%\n",
+            "Women: 19.04%\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "recid_count = len(df[df[\"two_year_recid\"] == 1])\n",
+        "print(f\"\\nTwo-year recidivists: {recid_count}\")\n",
+        "print(f\"Recidivism rate:      {recid_count / total * 100:.5f}%\")"
+      ],
+      "metadata": {
+        "id": "8IsUTdtsfo7j",
+        "outputId": "b4657b82-e69a-48b8-d938-7d1964096780",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 24,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Two-year recidivists: 2809\n",
+            "Recidivism rate:      45.51199%\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "black_df = df[df[\"race\"] == \"African-American\"]\n",
+        "white_df = df[df[\"race\"] == \"Caucasian\"]"
+      ],
+      "metadata": {
+        "id": "fOeZNRlufrsJ"
+      },
+      "execution_count": 25,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "black_counts = black_df[\"decile_score\"].value_counts().sort_index()\n",
+        "white_counts = white_df[\"decile_score\"].value_counts().sort_index()\n",
+        "\n",
+        "fig, axes = plt.subplots(1, 2, figsize=(12, 5))\n",
+        "\n",
+        "axes[0].bar(black_counts.index, black_counts.values, color=\"steelblue\")\n",
+        "axes[0].set_title(\"Black Defendant's Decile Scores\")\n",
+        "axes[0].set_xlabel(\"Decile Score\")\n",
+        "axes[0].set_ylabel(\"Count\")\n",
+        "axes[0].set_ylim(0, 650)\n",
+        "\n",
+        "axes[1].bar(white_counts.index, white_counts.values, color=\"steelblue\")\n",
+        "axes[1].set_title(\"White Defendant's Decile Scores\")\n",
+        "axes[1].set_xlabel(\"Decile Score\")\n",
+        "axes[1].set_ylabel(\"Count\")\n",
+        "axes[1].set_ylim(0, 650)\n",
+        "\n",
+        "plt.tight_layout()\n",
+        "plt.savefig(\"decile_score_by_race.png\", dpi=120)\n",
+        "plt.show()\n",
+        "print(\"Chart saved as decile_score_by_race.png\")"
+      ],
+      "metadata": {
+        "id": "3ry-KBw7fvd9",
+        "outputId": "bcb08a3f-ca19-4dfa-81eb-f1801f06982b",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 525
+        }
+      },
+      "execution_count": 26,
+      "outputs": [
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<Figure size 1200x500 with 2 Axes>"
+            ],
+            "image/png": "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Pt64u7ubZ5991jZtwYIFRpJZt25duuXeqGPHjqZmzZq3HHej3NxPa9euNZLMwIED0y0z7TNmzF/vR1RUlO152ucubbtTU1NNlSpVTEREhN3r/vzzTxMcHGweeOCBm25jbGysKVWqlJFkqlevbp555hkzf/58c/HiRbtx169fN8HBwaZixYrmwoULmdZbt25dExAQYM6dO2ebtmfPHuPs7Gx69uxpmzZq1CgjyTz22GN2yzpx4oRxcXExr732mt30ffv2GVdXV9v0Xbt22f79AQAyd+DAASPJjBs3zhhjzLVr14yXl5f56KOPjDHGBAYGmhkzZhhjjElMTDQuLi7m6aeftltGVvuCtD7t+PHjtmk1a9Y0zZo1S1fX7fQ1GWnWrNlNj+0LFy40kszbb79tjMn68cWY/x2jfvvtN9u0P/74w/j5+aV7b2JjY42vr6/d9KioKCPJjB071m7sPffcY8LCwmzPv/76ayPJTJo0yTbt+vXr5r777jOSzJw5c2zTM+qj/vOf/6TrmdJqf/LJJ+3GPvzww6ZEiRJ207y8vOx6jMykvZfbtm275dgb5dZ+ympfkvZ+/N2NvdWdfhZ79uxpJJnixYubhx9+2Lz55pvm0KFD6cZl5e+LqVOnGknmk08+sc27evWqCQ8PN8WKFTOJiYnGmP/1qD4+PiY+Pt5uWa1atTK1atUyV65csVt+48aNTZUqVWzT6tSpk+7vBeBW+Pke8P9mzJihVatWadWqVfrkk0/UokULPfXUU7f8xsbT09P239euXdO5c+d01113yc/PTzt37rTN+/LLL1WnTh27i4KmufGbqISEBLVp00Y//vijvvvuO9WtW/fONu7/pV1c+o8//pD01zcw9913n4oXL67ff//d9mjdurVSUlL0/fff33R5CxYsUI0aNVS9enW717ds2VKS0t19p3Xr1nbfmNWuXVs+Pj76+eefJf31DeCKFSvUqVMnVahQwTauRo0aioiISLf+v7/3aWe6NWvWTD///HO6U7ZDQ0N133332Z6XKlVK1apVs637dvn5+emXX37Rtm3bsvX6m8nufvryyy/l5OSU4cXob+eON7t379aRI0f0+OOP69y5c7b1Xbp0Sa1atdL3339/01PPAwMDtWfPHj3zzDO6cOGCZs+erccff1wBAQEaN26c7eylXbt26fjx4xo8eHC6a2yk1Xv2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\n"
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Chart saved as decile_score_by_race.png\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"\\nDecile score x Race crosstab:\")\n",
+        "print(pd.crosstab(df[\"decile_score\"], df[\"race\"]))\n"
+      ],
+      "metadata": {
+        "id": "3rWbrGfof5Yl",
+        "outputId": "ccb9b1b4-697e-4572-d001-44f7341fcd22",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 27,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Decile score x Race crosstab:\n",
+            "race          African-American  Asian  Caucasian  Hispanic  Native American  \\\n",
+            "decile_score                                                                  \n",
+            "1                          365     15        605       159                0   \n",
+            "2                          346      4        321        89                2   \n",
+            "3                          298      5        238        73                1   \n",
+            "4                          337      0        243        47                0   \n",
+            "5                          323      1        200        39                0   \n",
+            "6                          318      2        160        27                2   \n",
+            "7                          343      1        113        28                2   \n",
+            "8                          301      2         96        14                0   \n",
+            "9                          317      0         77        17                2   \n",
+            "10                         227      1         50        16                2   \n",
+            "\n",
+            "race          Other  \n",
+            "decile_score         \n",
+            "1               142  \n",
+            "2                60  \n",
+            "3                32  \n",
+            "4                39  \n",
+            "5                19  \n",
+            "6                20  \n",
+            "7                 9  \n",
+            "8                 7  \n",
+            "9                 7  \n",
+            "10                8  \n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "formula = (\n",
+        "    \"score_factor ~ \"\n",
+        "    \"C(sex,              Treatment('Male'))      + \"\n",
+        "    \"C(age_cat,          Treatment('25 - 45'))   + \"\n",
+        "    \"C(race,             Treatment('Caucasian')) + \"\n",
+        "    \"priors_count                                + \"\n",
+        "    \"C(c_charge_degree,  Treatment('F'))         + \"\n",
+        "    \"two_year_recid\"\n",
+        ")\n",
+        "\n",
+        "model = smf.logit(formula, data=df).fit()\n",
+        "print(model.summary())"
+      ],
+      "metadata": {
+        "id": "oGjFwpVKf8TI",
+        "outputId": "6d2504c6-ac9d-4f29-cad3-90b1a1602e69",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 28,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Optimization terminated successfully.\n",
+            "         Current function value: 0.499708\n",
+            "         Iterations 6\n",
+            "                           Logit Regression Results                           \n",
+            "==============================================================================\n",
+            "Dep. Variable:           score_factor   No. Observations:                 6172\n",
+            "Model:                          Logit   Df Residuals:                     6160\n",
+            "Method:                           MLE   Df Model:                           11\n",
+            "Date:                Tue, 24 Mar 2026   Pseudo R-squ.:                  0.2729\n",
+            "Time:                        01:40:09   Log-Likelihood:                -3084.2\n",
+            "converged:                       True   LL-Null:                       -4241.7\n",
+            "Covariance Type:            nonrobust   LLR p-value:                     0.000\n",
+            "=======================================================================================================================\n",
+            "                                                          coef    std err          z      P>|z|      [0.025      0.975]\n",
+            "-----------------------------------------------------------------------------------------------------------------------\n",
+            "Intercept                                              -1.5255      0.079    -19.430      0.000      -1.679      -1.372\n",
+            "C(sex, Treatment('Male'))[T.Female]                     0.2213      0.080      2.783      0.005       0.065       0.377\n",
+            "C(age_cat, Treatment('25 - 45'))[T.Greater than 45]    -1.3556      0.099    -13.682      0.000      -1.550      -1.161\n",
+            "C(age_cat, Treatment('25 - 45'))[T.Less than 25]        1.3084      0.076     17.232      0.000       1.160       1.457\n",
+            "C(race, Treatment('Caucasian'))[T.African-American]     0.4772      0.069      6.881      0.000       0.341       0.613\n",
+            "C(race, Treatment('Caucasian'))[T.Asian]               -0.2544      0.478     -0.532      0.595      -1.192       0.683\n",
+            "C(race, Treatment('Caucasian'))[T.Hispanic]            -0.4284      0.128     -3.344      0.001      -0.680      -0.177\n",
+            "C(race, Treatment('Caucasian'))[T.Native American]      1.3942      0.766      1.820      0.069      -0.107       2.896\n",
+            "C(race, Treatment('Caucasian'))[T.Other]               -0.8263      0.162     -5.098      0.000      -1.144      -0.509\n",
+            "C(c_charge_degree, Treatment('F'))[T.M]                -0.3112      0.067     -4.677      0.000      -0.442      -0.181\n",
+            "priors_count                                            0.2689      0.011     24.221      0.000       0.247       0.291\n",
+            "two_year_recid                                          0.6859      0.064     10.713      0.000       0.560       0.811\n",
+            "=======================================================================================================================\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "intercept    = model.params[\"Intercept\"]\n",
+        "control      = np.exp(intercept) / (1 + np.exp(intercept))\n",
+        "\n",
+        "coef_black   = model.params[\"C(race, Treatment('Caucasian'))[T.African-American]\"]\n",
+        "coef_female  = model.params[\"C(sex, Treatment('Male'))[T.Female]\"]\n",
+        "coef_young   = model.params[\"C(age_cat, Treatment('25 - 45'))[T.Less than 25]\"]\n",
+        "\n",
+        "or_black     = np.exp(coef_black)  / (1 - control + control * np.exp(coef_black))\n",
+        "or_female    = np.exp(coef_female) / (1 - control + control * np.exp(coef_female))\n",
+        "or_young     = np.exp(coef_young)  / (1 - control + control * np.exp(coef_young))\n",
+        "\n",
+        "print(f\"\\nBlack defendants are {or_black:.4f}x more likely to get a high score than white defendants\")"
+      ],
+      "metadata": {
+        "id": "mg6fUouCgBIC",
+        "outputId": "acd321cd-9ac7-4172-ad09-4bf9bf8f2d48",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 29,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Black defendants are 1.4528x more likely to get a high score than white defendants\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(f\"Women are {or_female:.4f}x more likely than men to get a high score\")"
+      ],
+      "metadata": {
+        "id": "9qJozzE5gDnu",
+        "outputId": "0b869ee2-b614-47c4-c5e4-b8fd8b77cf40",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 30,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Women are 1.1948x more likely than men to get a high score\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(f\"People under 25 are {or_young:.4f}x more likely than middle aged defendants\")"
+      ],
+      "metadata": {
+        "id": "_F_CrL3xgGHz",
+        "outputId": "6dc96049-3d14-49c9-fee1-5e26063bb430",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 31,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "People under 25 are 2.4961x more likely than middle aged defendants\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df[\"pred_prob\"]  = model.predict(df)\n",
+        "df[\"pred_class\"] = 0\n",
+        "df.loc[df[\"pred_prob\"] >= 0.5, \"pred_class\"] = 1"
+      ],
+      "metadata": {
+        "id": "uvLCHXphgIZA"
+      },
+      "execution_count": 32,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "actual    = df[\"two_year_recid\"].astype(int)\n",
+        "predicted = df[\"pred_class\"].astype(int)"
+      ],
+      "metadata": {
+        "id": "D3-2fzZogKf1"
+      },
+      "execution_count": 33,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "TP = len(df[(predicted == 1) & (actual == 1)])\n",
+        "TN = len(df[(predicted == 0) & (actual == 0)])\n",
+        "FP = len(df[(predicted == 1) & (actual == 0)])\n",
+        "FN = len(df[(predicted == 0) & (actual == 1)])\n",
+        "n  = len(df)"
+      ],
+      "metadata": {
+        "id": "OeLJkbrBgN4e"
+      },
+      "execution_count": 34,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"\\n── Overall Confusion Matrix ──────────────────────────────────────────\")\n",
+        "print(f\"{'':20} Actual 0   Actual 1\")\n",
+        "print(f\"{'Predicted 0 (No Recid)':22} {TN:6}     {FN:6}\")\n",
+        "print(f\"{'Predicted 1 (Recid)':22} {FP:6}     {TP:6}\")"
+      ],
+      "metadata": {
+        "id": "DtEJKYBSgRKd",
+        "outputId": "568bc0cb-8352-4ec8-c3f3-04f84f545c46",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 35,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "── Overall Confusion Matrix ──────────────────────────────────────────\n",
+            "                     Actual 0   Actual 1\n",
+            "Predicted 0 (No Recid)   2653        945\n",
+            "Predicted 1 (Recid)       710       1864\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(f\"\\nAccuracy  : {(TP + TN) / n:.3f}\")\n",
+        "print(f\"Precision : {TP / (TP + FP):.3f}\")\n",
+        "print(f\"Recall    : {TP / (TP + FN):.3f}\")\n",
+        "print(f\"FPR       : {FP / (FP + TN):.3f}\")\n",
+        "print(f\"FNR       : {FN / (FN + TP):.3f}\")"
+      ],
+      "metadata": {
+        "id": "ZMW2VIqCgVE0",
+        "outputId": "6dd37410-dc87-4787-c861-a4a53126b624",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 36,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "Accuracy  : 0.732\n",
+            "Precision : 0.724\n",
+            "Recall    : 0.664\n",
+            "FPR       : 0.211\n",
+            "FNR       : 0.336\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"\\n── Confusion Matrix by Race ──────────────────────────────────────────\")"
+      ],
+      "metadata": {
+        "id": "qgFLaaxogdUc",
+        "outputId": "9306e860-5d20-4b71-aa90-26aabf498af8",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 37,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "── Confusion Matrix by Race ──────────────────────────────────────────\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "race_order = df[\"race\"].value_counts().index.tolist()\n",
+        "\n",
+        "results = []\n",
+        "\n",
+        "for race in race_order:\n",
+        "    group     = df[df[\"race\"] == race]\n",
+        "    actual_r  = group[\"two_year_recid\"].astype(int)\n",
+        "    pred_r    = group[\"pred_class\"].astype(int)\n",
+        "\n",
+        "    tp = len(group[(pred_r == 1) & (actual_r == 1)])\n",
+        "    tn = len(group[(pred_r == 0) & (actual_r == 0)])\n",
+        "    fp = len(group[(pred_r == 1) & (actual_r == 0)])\n",
+        "    fn = len(group[(pred_r == 0) & (actual_r == 1)])\n",
+        "    nr = len(group)\n",
+        "\n",
+        "    accuracy  = round((tp + tn) / nr, 3)\n",
+        "    precision = round(tp / (tp + fp), 3) if (tp + fp) > 0 else None\n",
+        "    recall    = round(tp / (tp + fn), 3) if (tp + fn) > 0 else None\n",
+        "    fpr       = round(fp / (fp + tn), 3) if (fp + tn) > 0 else None\n",
+        "    fnr       = round(fn / (fn + tp), 3) if (fn + tp) > 0 else None\n",
+        "\n",
+        "    results.append({\n",
+        "        \"race\":      race,\n",
+        "        \"n\":         nr,\n",
+        "        \"TP\":        tp,\n",
+        "        \"TN\":        tn,\n",
+        "        \"FP\":        fp,\n",
+        "        \"FN\":        fn,\n",
+        "        \"Accuracy\":  accuracy,\n",
+        "        \"Precision\": precision,\n",
+        "        \"Recall\":    recall,\n",
+        "        \"FPR\":       fpr,\n",
+        "        \"FNR\":       fnr\n",
+        "    })\n",
+        "\n",
+        "race_df = pd.DataFrame(results)\n",
+        "print(race_df.to_string(index=False))"
+      ],
+      "metadata": {
+        "id": "WyVJ55mlgikQ",
+        "outputId": "cefadb23-612a-492a-aa48-7760faa4b52e",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 38,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "            race    n   TP   TN  FP  FN  Accuracy  Precision  Recall   FPR   FNR\n",
+            "African-American 3175 1373  959 555 288     0.734      0.712   0.827 0.367 0.173\n",
+            "       Caucasian 2103  381 1148 133 441     0.727      0.741   0.464 0.104 0.536\n",
+            "        Hispanic  509   81  306  14 108     0.760      0.853   0.429 0.044 0.571\n",
+            "           Other  343   22  216   3 102     0.694      0.880   0.177 0.014 0.823\n",
+            "           Asian   31    2   22   1   6     0.774      0.667   0.250 0.043 0.750\n",
+            " Native American   11    5    2   4   0     0.636      0.556   1.000 0.667 0.000\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "print(\"\\n── FPR and FNR Disparity by Race ─────────────────────────────────────\")\n",
+        "\n",
+        "caucasian_row = race_df[race_df[\"race\"] == \"Caucasian\"].iloc[0]\n",
+        "base_fpr = caucasian_row[\"FPR\"]\n",
+        "base_fnr = caucasian_row[\"FNR\"]\n",
+        "\n",
+        "disparity = race_df[[\"race\", \"n\", \"FPR\", \"FNR\"]].copy()\n",
+        "disparity[\"delta_FPR\"] = (disparity[\"FPR\"] - base_fpr).round(3)\n",
+        "disparity[\"delta_FNR\"] = (disparity[\"FNR\"] - base_fnr).round(3)\n",
+        "\n",
+        "print(disparity.to_string(index=False))"
+      ],
+      "metadata": {
+        "id": "gJ5PbnvCgmmP",
+        "outputId": "f0a6cd6c-bac6-4c07-eab2-3d0ac8129cd4",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 39,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\n",
+            "── FPR and FNR Disparity by Race ─────────────────────────────────────\n",
+            "            race    n   FPR   FNR  delta_FPR  delta_FNR\n",
+            "African-American 3175 0.367 0.173      0.263     -0.363\n",
+            "       Caucasian 2103 0.104 0.536      0.000      0.000\n",
+            "        Hispanic  509 0.044 0.571     -0.060      0.035\n",
+            "           Other  343 0.014 0.823     -0.090      0.287\n",
+            "           Asian   31 0.043 0.750     -0.061      0.214\n",
+            " Native American   11 0.667 0.000      0.563     -0.536\n"
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "colab": {
+      "name": "Welcome to Colab",
+      "provenance": []
+    },
+    "kernelspec": {
+      "display_name": "Python 3",
+      "name": "python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
