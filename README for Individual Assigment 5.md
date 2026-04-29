@@ -5,7 +5,7 @@
 
 ## Overview
 
-This notebook extends `Lecture_05_security.ipynb` to conduct a full adversarial security audit of the **ProPublica COMPAS recidivism dataset**. All three attack classes from the lecture. Evasion, poisoning, and membership inference are extended and deepened across four homework parts. All attack pipelines are implemented from scratch using `scikit-learn`, `numpy`, `pandas`, and `matplotlib`. No external adversarial ML library is used.
+This notebook extends `Individual Assignment 5.ipynb` to conduct a full adversarial security audit of the **ProPublica COMPAS recidivism dataset**. All three attack classes from the lecture. Evasion, poisoning, and membership inference are extended and deepened across four homework parts. All attack pipelines are implemented from scratch using `scikit-learn`, `numpy`, `pandas`, and `matplotlib`. No external adversarial ML library is used.
 
 **Dataset:** [ProPublica COMPAS Analysis](https://github.com/propublica/compas-analysis/blob/master/compas-scores-two-years.csv)  
 6,172 records after filtering · 7 features · 45.5% recidivism rate
